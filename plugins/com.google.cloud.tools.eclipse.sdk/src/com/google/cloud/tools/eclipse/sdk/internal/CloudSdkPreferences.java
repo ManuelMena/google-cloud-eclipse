@@ -55,6 +55,11 @@ public final class CloudSdkPreferences extends AbstractPreferenceInitializer {
     return InstanceScope.INSTANCE.getNode(BUNDLEID);
   }
 
+  public static boolean isAutoManaging() {
+    return getPreferenceStore().getString(CLOUD_SDK_MANAGEMENT).equals(
+        CloudSdkManagementOption.AUTOMATIC.name());
+  }
+
   @Override
   public void initializeDefaultPreferences() {
     getPreferenceStore().setDefault(CLOUD_SDK_MANAGEMENT,

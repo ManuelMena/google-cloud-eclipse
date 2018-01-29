@@ -16,8 +16,11 @@
 
 package com.google.cloud.tools.eclipse.sdk;
 
+import com.google.cloud.tools.eclipse.sdk.internal.CloudSdkPreferences;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import org.eclipse.osgi.service.debug.DebugOptions;
+import org.eclipse.ui.console.MessageConsoleStream;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 
@@ -41,6 +44,90 @@ public class CloudSdkManager {
       return debugOptions.getBooleanOption(OPTION_MANAGED_CLOUD_SDK, false);
     }
     return false;
+  }
+
+  private static Object modifyLock = new Object();
+  private static int suspenderCounts = 0;
+  private static boolean isModifyingSdk = false;
+
+  /**
+   * Suspends potential SDK auto-install or auto-update temporarily. This is to use the Cloud SDK
+   * safely by preventing modifying the SDK while using the SDK. If an install or update has already
+   * started, blocks callers until the install or update is complete. Callers must call {@code
+   * CloudSdkManager#allowModifyingSdk} eventually to lift the suspension.
+   *
+   * Any callers that intend to use {@code CloudSdk} must always call this before staring work, even
+   * if the Cloud SDK preferences are configured not to auto-managed the SDK.
+   *
+   * @see CloudSdkManager#allowModifyingSdk
+   */
+  public static void suspendModifyingSdk() throws InterruptedException {
+    synchronized (modifyLock) {
+      while (isModifyingSdk) {
+        modifyLock.wait();
+      }
+      suspenderCounts++;
+    }
+  }
+
+  /**
+   * Allows SDK auto-install or auto-update temporarily suspended by {@code
+   * CloudSdkManager#suspendModifyingSdk}.
+   *
+   * @see CloudSdkManager#suspendModifyingSdk
+   */
+  public static void allowModifyingSdk() {
+    synchronized (modifyLock) {
+      Preconditions.checkState(suspenderCounts > 0);
+      suspenderCounts--;
+      modifyLock.notifyAll();
+    }
+  }
+
+  /**
+   * Installs the managed Cloud SDK, if the preferences are configured to auto-managed the SDK.
+   * Blocks callers 1) if the managed SDK is being installed or updated concurrently by others; and
+   * 2) until the installation is complete.
+   *
+   * @param consoleStream stream to which the install output is written
+   */
+  public static void installManagedSdk(MessageConsoleStream consoleStream)
+      throws InterruptedException {
+    if (isManagedSdkFeatureEnabled()) {
+      if (CloudSdkPreferences.isAutoManaging()) {
+        synchronized (modifyLock) {
+          try {
+            while (isModifyingSdk || suspenderCounts > 0) {
+              modifyLock.wait();
+            }
+            isModifyingSdk = true;
+            // TODO: start installing SDK synchronously if not found.
+            
+          } finally {
+            isModifyingSdk = false;
+            modifyLock.notifyAll();
+          }
+        }
+      }
+    }
+  }
+
+  public static void installManagedSdkAsync() {
+    if (isManagedSdkFeatureEnabled()) {
+      if (CloudSdkPreferences.isAutoManaging()) {
+        // Job installJob = new Job();
+        // installJob.schedule();
+      }
+    }
+  }
+
+  public static void updateManagedSdkAsync() {
+    if (isManagedSdkFeatureEnabled()) {
+      if (CloudSdkPreferences.isAutoManaging()) {
+        // Job udpateJob = new Job();
+        // updateJob.schedule();
+      }
+    }
   }
 
   /**
