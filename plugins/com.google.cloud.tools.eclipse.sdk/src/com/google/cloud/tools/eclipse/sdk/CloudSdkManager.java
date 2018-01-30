@@ -17,8 +17,26 @@
 package com.google.cloud.tools.eclipse.sdk;
 
 import com.google.cloud.tools.eclipse.sdk.internal.CloudSdkPreferences;
+import com.google.cloud.tools.eclipse.util.status.StatusUtil;
+import com.google.cloud.tools.managedcloudsdk.ManagedCloudSdk;
+import com.google.cloud.tools.managedcloudsdk.ManagedSdkVerificationException;
+import com.google.cloud.tools.managedcloudsdk.ManagedSdkVersionMismatchException;
+import com.google.cloud.tools.managedcloudsdk.MessageListener;
+import com.google.cloud.tools.managedcloudsdk.UnsupportedOsException;
+import com.google.cloud.tools.managedcloudsdk.command.CommandExecutionException;
+import com.google.cloud.tools.managedcloudsdk.command.CommandExitException;
+import com.google.cloud.tools.managedcloudsdk.components.SdkComponent;
+import com.google.cloud.tools.managedcloudsdk.components.SdkComponentInstaller;
+import com.google.cloud.tools.managedcloudsdk.install.SdkInstaller;
+import com.google.cloud.tools.managedcloudsdk.install.SdkInstallerException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.osgi.service.debug.DebugOptions;
 import org.eclipse.ui.console.MessageConsoleStream;
 import org.osgi.framework.BundleContext;
@@ -47,41 +65,50 @@ public class CloudSdkManager {
   }
 
   private static Object modifyLock = new Object();
-  private static int suspenderCounts = 0;
+  private static int preventerCounts = 0;
   private static boolean isModifyingSdk = false;
 
   /**
-   * Suspends potential SDK auto-install or auto-update temporarily. This is to use the Cloud SDK
-   * safely by preventing modifying the SDK while using the SDK. If an install or update has already
-   * started, blocks callers until the install or update is complete. Callers must call {@code
-   * CloudSdkManager#allowModifyingSdk} eventually to lift the suspension.
+   * Prevents potential future SDK auto-install or auto-update temporarily. This is to use the Cloud
+   * SDK safely by preventing modifying the SDK while using the SDK. If an install or update has
+   * already started, blocks callers until the install or update is complete. Callers must call
+   * {@code CloudSdkManager#allowModifyingSdk} eventually to lift the suspension. Any callers that
+   * intend to use {@code CloudSdk} must always call this before staring work, even if the Cloud SDK
+   * preferences are configured not to auto-manage the SDK.
    *
-   * Any callers that intend to use {@code CloudSdk} must always call this before staring work, even
-   * if the Cloud SDK preferences are configured not to auto-managed the SDK.
+   * Note that, since the method can block, must not be called from the UI thread.
    *
    * @see CloudSdkManager#allowModifyingSdk
    */
-  public static void suspendModifyingSdk() throws InterruptedException {
+  public static void preventModifyingSdk() throws InterruptedException {
     synchronized (modifyLock) {
       while (isModifyingSdk) {
         modifyLock.wait();
       }
-      suspenderCounts++;
+      preventerCounts++;
     }
   }
 
   /**
-   * Allows SDK auto-install or auto-update temporarily suspended by {@code
-   * CloudSdkManager#suspendModifyingSdk}.
+   * Allows future SDK auto-install or auto-update temporarily prevented by {@code
+   * CloudSdkManager#preventModifyingSdk}. This is a non-blocking call.
    *
-   * @see CloudSdkManager#suspendModifyingSdk
+   * @see CloudSdkManager#preventModifyingSdk
    */
   public static void allowModifyingSdk() {
-    synchronized (modifyLock) {
-      Preconditions.checkState(suspenderCounts > 0);
-      suspenderCounts--;
-      modifyLock.notifyAll();
-    }
+    // Fire a job as an optimization that makes this method non-blocking; there is no need to wait
+    // until it goes into a modifiable state.
+    Job releaseJob = new Job("Lifting SDK modification prevention...") {
+      @Override
+      protected IStatus run(IProgressMonitor monitor) {
+        synchronized (modifyLock) {
+          Preconditions.checkState(preventerCounts > 0);
+          preventerCounts--;
+          modifyLock.notifyAll();
+        }
+        return Status.OK_STATUS;
+      }};
+    releaseJob.schedule();
   }
 
   /**
@@ -92,17 +119,17 @@ public class CloudSdkManager {
    * @param consoleStream stream to which the install output is written
    */
   public static void installManagedSdk(MessageConsoleStream consoleStream)
-      throws InterruptedException {
+      throws InterruptedException, CoreException {
     if (isManagedSdkFeatureEnabled()) {
       if (CloudSdkPreferences.isAutoManaging()) {
         synchronized (modifyLock) {
           try {
-            while (isModifyingSdk || suspenderCounts > 0) {
+            while (isModifyingSdk || preventerCounts > 0) {
               modifyLock.wait();
             }
             isModifyingSdk = true;
-            // TODO: start installing SDK synchronously if not found.
-            
+
+            doCoreInstall(consoleStream);
           } finally {
             isModifyingSdk = false;
             modifyLock.notifyAll();
@@ -112,10 +139,35 @@ public class CloudSdkManager {
     }
   }
 
+  private static void doCoreInstall(MessageConsoleStream consoleStream)
+      throws InterruptedException, CoreException {
+    try {
+      ManagedCloudSdk managedSdk = ManagedCloudSdk.newManagedSdk();
+      if (!managedSdk.isInstalled()) {
+        SdkInstaller installer = managedSdk.newInstaller();
+        installer.install(new ConsoleOutputListener(consoleStream));
+      }
+
+      if (!managedSdk.hasComponent(SdkComponent.APP_ENGINE_JAVA)) {
+        SdkComponentInstaller componentInstaller = managedSdk.newComponentInstaller();
+        componentInstaller.installComponent(
+        SdkComponent.APP_ENGINE_JAVA, new ConsoleOutputListener(consoleStream));
+      }
+    } catch (IOException | ManagedSdkVerificationException | SdkInstallerException |
+        CommandExecutionException | CommandExitException e) {
+      throw new CoreException(
+          StatusUtil.error(CloudSdkManager.class, "Failed to install the Google Cloud SDK.", e));
+    } catch (UnsupportedOsException e) {
+      throw new RuntimeException("Cloud Tools for Eclipse supports Windows, Linux, and Mac only.");
+    } catch (ManagedSdkVersionMismatchException e) {
+      throw new RuntimeException("This is never thrown because we always use LATEST.");
+    }
+  }
+
   public static void installManagedSdkAsync() {
     if (isManagedSdkFeatureEnabled()) {
       if (CloudSdkPreferences.isAutoManaging()) {
-        // Job installJob = new Job();
+        // Job installJob = new InstallJob();
         // installJob.schedule();
       }
     }
@@ -124,7 +176,7 @@ public class CloudSdkManager {
   public static void updateManagedSdkAsync() {
     if (isManagedSdkFeatureEnabled()) {
       if (CloudSdkPreferences.isAutoManaging()) {
-        // Job udpateJob = new Job();
+        // Job udpateJob = new UpdateJob();
         // updateJob.schedule();
       }
     }
@@ -136,5 +188,19 @@ public class CloudSdkManager {
    */
   public static void setUpInitialPreferences() {
     // TODO(chanseok): to be implemented.
+  }
+
+  private static class ConsoleOutputListener implements MessageListener {
+
+    private final MessageConsoleStream stream;
+
+    private ConsoleOutputListener(MessageConsoleStream stream) {
+      this.stream = stream;
+    }
+
+    @Override
+    public void message(String rawString) {
+      stream.print(rawString);
+    }
   }
 }
