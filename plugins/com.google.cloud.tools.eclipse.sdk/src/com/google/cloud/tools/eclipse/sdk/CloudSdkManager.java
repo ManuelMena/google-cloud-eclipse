@@ -21,7 +21,6 @@ import com.google.cloud.tools.eclipse.util.status.StatusUtil;
 import com.google.cloud.tools.managedcloudsdk.ManagedCloudSdk;
 import com.google.cloud.tools.managedcloudsdk.ManagedSdkVerificationException;
 import com.google.cloud.tools.managedcloudsdk.ManagedSdkVersionMismatchException;
-import com.google.cloud.tools.managedcloudsdk.MessageListener;
 import com.google.cloud.tools.managedcloudsdk.UnsupportedOsException;
 import com.google.cloud.tools.managedcloudsdk.command.CommandExecutionException;
 import com.google.cloud.tools.managedcloudsdk.command.CommandExitException;
@@ -76,7 +75,8 @@ public class CloudSdkManager {
    * intend to use {@code CloudSdk} must always call this before staring work, even if the Cloud SDK
    * preferences are configured not to auto-manage the SDK.
    *
-   * Note that, since the method can block, must not be called from the UI thread.
+   * Must not be called from the UI thread because the method will block if there is an on-going
+   * install/update.
    *
    * @see CloudSdkManager#allowModifyingSdk
    */
@@ -145,13 +145,13 @@ public class CloudSdkManager {
       ManagedCloudSdk managedSdk = ManagedCloudSdk.newManagedSdk();
       if (!managedSdk.isInstalled()) {
         SdkInstaller installer = managedSdk.newInstaller();
-        installer.install(new ConsoleOutputListener(consoleStream));
+        installer.install(new MessageConsoleWriterListener(consoleStream));
       }
 
       if (!managedSdk.hasComponent(SdkComponent.APP_ENGINE_JAVA)) {
         SdkComponentInstaller componentInstaller = managedSdk.newComponentInstaller();
         componentInstaller.installComponent(
-        SdkComponent.APP_ENGINE_JAVA, new ConsoleOutputListener(consoleStream));
+        SdkComponent.APP_ENGINE_JAVA, new MessageConsoleWriterListener(consoleStream));
       }
     } catch (IOException | ManagedSdkVerificationException | SdkInstallerException |
         CommandExecutionException | CommandExitException e) {
@@ -190,17 +190,4 @@ public class CloudSdkManager {
     // TODO(chanseok): to be implemented.
   }
 
-  private static class ConsoleOutputListener implements MessageListener {
-
-    private final MessageConsoleStream stream;
-
-    private ConsoleOutputListener(MessageConsoleStream stream) {
-      this.stream = stream;
-    }
-
-    @Override
-    public void message(String rawString) {
-      stream.print(rawString);
-    }
-  }
 }
