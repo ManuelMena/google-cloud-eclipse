@@ -18,6 +18,7 @@ package com.google.cloud.tools.eclipse.appengine.deploy;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.tools.eclipse.login.CredentialHelper;
+import com.google.cloud.tools.eclipse.sdk.CloudSdkManager;
 import com.google.cloud.tools.eclipse.ui.util.WorkbenchUtil;
 import com.google.cloud.tools.eclipse.util.status.StatusUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -85,29 +86,40 @@ public class DeployJob extends WorkspaceJob {
     SubMonitor progress = SubMonitor.convert(monitor, 100);
 
     try {
-      IPath stagingDirectory = workDirectory.append(STAGING_DIRECTORY_NAME);
-      Path credentialFile = workDirectory.append(CREDENTIAL_FILENAME).toFile().toPath();
+      CloudSdkManager.installManagedSdk(stdoutOutputStream);
 
-      IStatus saveStatus = saveCredential(credentialFile);
-      if (saveStatus != Status.OK_STATUS) {
-        return saveStatus;
+//      IPath stagingDirectory = workDirectory.append(STAGING_DIRECTORY_NAME);
+//      Path credentialFile = workDirectory.append(CREDENTIAL_FILENAME).toFile().toPath();
+
+//      IStatus saveStatus = saveCredential(credentialFile);
+//      if (saveStatus != Status.OK_STATUS) {
+//        return saveStatus;
+//      }
+
+      CloudSdkManager.preventModifyingSdk();
+      try {
+        Thread.sleep(15000);
+//        IStatus stagingStatus = stageProject(stagingDirectory, progress.newChild(30));
+//        if (stagingStatus != Status.OK_STATUS) {
+//          return stagingStatus;
+//        } else if (monitor.isCanceled()) {
+//          return Status.CANCEL_STATUS;
+//        }
+//
+//        IStatus deployStatus = deployProject(credentialFile, stagingDirectory, progress.newChild(70));
+//        if (deployStatus != Status.OK_STATUS) {
+//          return deployStatus;
+//        } else if (monitor.isCanceled()) {
+//          return Status.CANCEL_STATUS;
+//        }
+      } finally {
+        CloudSdkManager.allowModifyingSdk();
       }
 
-      IStatus stagingStatus = stageProject(stagingDirectory, progress.newChild(30));
-      if (stagingStatus != Status.OK_STATUS) {
-        return stagingStatus;
-      } else if (monitor.isCanceled()) {
-        return Status.CANCEL_STATUS;
-      }
-
-      IStatus deployStatus = deployProject(credentialFile, stagingDirectory, progress.newChild(70));
-      if (deployStatus != Status.OK_STATUS) {
-        return deployStatus;
-      } else if (monitor.isCanceled()) {
-        return Status.CANCEL_STATUS;
-      }
-
-      return openAppInBrowser();
+      return Status.OK_STATUS;
+//      return openAppInBrowser();
+    } catch (InterruptedException e) {
+      return Status.CANCEL_STATUS;
     } finally {
       progress.done();
     }

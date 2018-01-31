@@ -18,6 +18,7 @@ package com.google.cloud.tools.eclipse.bugreport.ui;
 
 import com.google.cloud.tools.appengine.api.AppEngineException;
 import com.google.cloud.tools.appengine.cloudsdk.CloudSdk;
+import com.google.cloud.tools.eclipse.sdk.CloudSdkManager;
 import com.google.cloud.tools.eclipse.util.CloudToolsInfo;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.escape.Escaper;
@@ -26,7 +27,12 @@ import java.text.MessageFormat;
 import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.swt.program.Program;
 import org.osgi.framework.Bundle;
 
@@ -59,8 +65,49 @@ public class BugReportCommandHandler extends AbstractHandler {
       + "Screenshots and stacktraces are helpful.";
   //@formatter:on
 
+  private static int count = 0;
+
   @Override
   public Object execute(ExecutionEvent event) throws ExecutionException {
+    if (true) {
+      if (count == 0) {
+        Job job = new Job("Yes") {
+          @Override
+          protected IStatus run(IProgressMonitor monitor) {
+            try {
+              System.out.println("Start acquiring");
+              CloudSdkManager.preventModifyingSdk();
+              CloudSdkManager.preventModifyingSdk();
+              count = 2;
+              System.out.println("Done acquiring.");
+              System.out.println("Start installing.");
+              CloudSdkManager.installManagedSdk(null);
+              System.out.println("Done installing.");
+            } catch (InterruptedException | CoreException e) {
+              e.printStackTrace();
+            }
+            return Status.OK_STATUS;
+          }
+        };
+        job.schedule();
+      } else {
+        Job job = new Job("Yes") {
+          @Override
+          protected IStatus run(IProgressMonitor monitor) {
+            if (count > 0) {
+              count--;
+              System.out.println("Start releasing: " + count);
+              CloudSdkManager.allowModifyingSdk();
+              System.out.println("Done acquiring: " + count);
+            }
+            return Status.OK_STATUS;
+          }
+        };
+        job.schedule();
+      }
+      return null;
+    }
+
     Program.launch(formatReportUrl());
     return null;
   }

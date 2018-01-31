@@ -33,6 +33,7 @@ import com.google.cloud.tools.eclipse.appengine.libraries.model.LibraryFile;
 import com.google.cloud.tools.eclipse.appengine.libraries.repository.ILibraryRepositoryService;
 import com.google.cloud.tools.eclipse.appengine.localserver.Activator;
 import com.google.cloud.tools.eclipse.appengine.localserver.Messages;
+import com.google.cloud.tools.eclipse.sdk.CloudSdkManager;
 import com.google.cloud.tools.eclipse.sdk.MessageConsoleWriterListener;
 import com.google.cloud.tools.eclipse.util.status.StatusUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -65,6 +66,8 @@ import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
 import org.eclipse.ui.console.MessageConsoleStream;
 import org.eclipse.wst.server.core.IModule;
 import org.eclipse.wst.server.core.IServer;
+import org.eclipse.wst.server.core.IServerListener;
+import org.eclipse.wst.server.core.ServerEvent;
 import org.eclipse.wst.server.core.internal.IModulePublishHelper;
 import org.eclipse.wst.server.core.model.IModuleResource;
 import org.eclipse.wst.server.core.model.IModuleResourceDelta;
@@ -356,6 +359,7 @@ public class LocalAppEngineServerBehaviour extends ServerBehaviourDelegate
 
     setServerState(IServer.STATE_STARTING);
     setMode(mode);
+    preventCloudSdkModification();
 
     // TODO(chanseok): remove once Bug 68205805 is fixed. This is a temporary workaround for
     // https://github.com/GoogleCloudPlatform/google-cloud-eclipse/issues/2531.
@@ -371,6 +375,24 @@ public class LocalAppEngineServerBehaviour extends ServerBehaviourDelegate
       Activator.logError("Error starting server: " + ex.getMessage()); //$NON-NLS-1$
       stop(true);
     }
+  }
+
+  @VisibleForTesting
+  void preventCloudSdkModification() throws CoreException {
+    try {
+      CloudSdkManager.preventModifyingSdk();
+    } catch (InterruptedException e) {
+      throw new CoreException(StatusUtil.error(this, "Launch interrupted", e));
+    }
+
+    getServer().addServerListener(new IServerListener() {
+      @Override
+      public void serverChanged(ServerEvent event) {
+        if (event.getState() == IServer.STATE_STOPPED) {
+          CloudSdkManager.allowModifyingSdk();
+          event.getServer().removeServerListener(this);
+        }
+      }});
   }
 
   @VisibleForTesting

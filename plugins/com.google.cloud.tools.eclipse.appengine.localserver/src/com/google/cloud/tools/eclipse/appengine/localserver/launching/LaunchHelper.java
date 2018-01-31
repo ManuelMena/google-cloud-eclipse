@@ -65,7 +65,8 @@ public class LaunchHelper {
         if (isRunning(existing)) {
           ILaunch launch = existing.getLaunch();
           Preconditions.checkNotNull(launch, "A running server should have a launch"); //$NON-NLS-1$
-          String detail = launchMode.equals(launch.getLaunchMode()) ? Messages.getString("SERVER_ALREADY_RUNNING") //$NON-NLS-1$
+          String detail = launchMode.equals(launch.getLaunchMode())
+              ? Messages.getString("SERVER_ALREADY_RUNNING") //$NON-NLS-1$
               : MessageFormat.format(Messages.getString("SERVER_ALREADY_RUNNING_IN_MODE"), //$NON-NLS-1$
                   launch.getLaunchMode());
           throw new CoreException(StatusUtil.info(this, detail));
