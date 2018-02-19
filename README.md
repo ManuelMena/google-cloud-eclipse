@@ -62,7 +62,7 @@ The tests need to find the Google Cloud SDK.  You can either:
 
 ### Changing the Eclipse Platform compilation and testing target
 
-By default, the build is targeted against Eclipse Mars / 4.5.
+By default, the build is targeted against Eclipse Oxygen / 4.7.
 You can explicitly set the `eclipse.target` property to
 `neon` (4.6) or `oxygen` (4.7).
 ```
@@ -247,9 +247,9 @@ features being built against. We currently maintain three target platforms,
 targeting the latest version of the current, previous, and next releases.
 This is currently:
 
-  - Eclipse Mars (4.5 SR2): [`eclipse/mars/gcp-eclipse-mars.target`](eclipse/mars/gcp-eclipse-mars.target)
   - Eclipse Neon (4.6): [`eclipse/neon/gcp-eclipse-neon.target`](eclipse/neon/gcp-eclipse-neon.target)
   - Eclipse Oxygen (4.7): [`eclipse/oxygen/gcp-eclipse-oxygen.target`](eclipse/oxygen/gcp-eclipse-oxygen.target)
+  - Eclipse Photon (4.8): [`eclipse/photon/gcp-eclipse-photon.target`](eclipse/photon/gcp-eclipse-photon.target)
 
 These `.target` files are generated and *should not be manually updated*.
 Updating `.target` files directly becomes a chore once it has more than a
