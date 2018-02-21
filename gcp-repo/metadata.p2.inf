@@ -95,7 +95,7 @@ units.3.properties.5.value=http://wiki.eclipse.org/Linux_Tools_Project/Docker_To
 units.3.properties.6.name=org.eclipse.equinox.p2.description
 units.3.properties.6.value=Supports Docker in Eclipse.
 units.3.licenses.0=\
-Docker Editor is made available under the Eclipse Public License
+Docker Tools are made available under the Eclipse Public License
 units.3.licenses.0.location=https://www.eclipse.org/legal/epl-v10.html
 units.3.requires.1.namespace=org.eclipse.equinox.p2.iu
 units.3.requires.1.name=org.eclipse.linuxtools.docker.feature.group
