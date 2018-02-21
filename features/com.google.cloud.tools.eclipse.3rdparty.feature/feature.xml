@@ -25,9 +25,9 @@
          optional="true"/>
 
    <includes
-         id="eu.openanalytics.editor.docker"
+         id="org.eclipse.linuxtools.docker"
          version="0.0.0"
-         name="Docker Editor"
+         name="Docker Tools"
          optional="true"/>
 
    <plugin
