@@ -36,12 +36,12 @@ import com.google.cloud.tools.eclipse.ui.util.event.OpenUriSelectionListener.Que
 import com.google.cloud.tools.eclipse.ui.util.images.SharedImages;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.net.UrlEscapers;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.eclipse.core.databinding.Binding;
@@ -294,9 +294,9 @@ public abstract class AppEngineDeployPreferencesPanel extends DeployPreferencesP
 
     // One-way update: button selection <-- latest user choice
     // Update the button (to match the user choice), if enabled; if not, force unchecking.
-    bindingContext.bindValue(dependantValue, new ComputedValue() {
+    bindingContext.bindValue(dependantValue, new ComputedValue<Boolean>() {
       @Override
-      protected Object calculate() {
+      protected Boolean calculate() {
         boolean controlEnabled = (boolean) dependantEnablement.getValue();
         boolean currentValue = (boolean) currentDependantChoice.getValue();
         if (!controlEnabled) {
@@ -308,9 +308,9 @@ public abstract class AppEngineDeployPreferencesPanel extends DeployPreferencesP
 
     // One-way update: button selection --> latest user choice
     // Update the user choice (to match the button selection), only when the button is enabled.
-    bindingContext.bindValue(new ComputedValue() {
+    bindingContext.bindValue(new ComputedValue<Boolean>() {
       @Override
-      protected Object calculate() {
+      protected Boolean calculate() {
         boolean controlEnabled = (boolean) dependantEnablement.getValue();
         boolean controlValue = (boolean) dependantValue.getValue();
         boolean currentValue = (boolean) currentDependantChoice.getValue();
@@ -502,19 +502,13 @@ public abstract class AppEngineDeployPreferencesPanel extends DeployPreferencesP
   @VisibleForTesting
   public Job latestGcpProjectQueryJob;  // Must be updated/accessed in the UI context.
 
-  private Predicate<Job> isLatestQueryJob = new Predicate<Job>() {
-    @Override
-    public boolean apply(Job job) {
-      return job == latestGcpProjectQueryJob;
-    }
-  };
-
   private void refreshProjectsForSelectedCredential() {
     projectSelector.setProjects(Collections.<GcpProject>emptyList());
     latestGcpProjectQueryJob = null;
 
     Credential selectedCredential = accountSelector.getSelectedCredential();
     if (selectedCredential != null) {
+      Predicate<Job> isLatestQueryJob = job -> job == latestGcpProjectQueryJob;
       latestGcpProjectQueryJob = new GcpProjectQueryJob(selectedCredential,
           projectRepository, projectSelector, bindingContext, isLatestQueryJob);
       latestGcpProjectQueryJob.schedule();
@@ -633,7 +627,7 @@ public abstract class AppEngineDeployPreferencesPanel extends DeployPreferencesP
     @Override
     protected IStatus validate() {
       // access accountSelectorObservableValue so MultiValidator records the access
-      String selectedEmail = (String) accountSelectorObservableValue.getValue();
+      String selectedEmail = accountSelectorObservableValue.getValue();
       if (requireValues && Strings.isNullOrEmpty(selectedEmail)) {
         if (accountSelector.isSignedIn()) {
           return ValidationStatus.error(Messages.getString("error.account.missing.signedin"));

@@ -62,9 +62,9 @@ The tests need to find the Google Cloud SDK.  You can either:
 
 ### Changing the Eclipse Platform compilation and testing target
 
-By default, the build is targeted against Eclipse Mars / 4.5.
+By default, the build is targeted against Eclipse Oxygen / 4.7.
 You can explicitly set the `eclipse.target` property to
-`neon` (4.6) or `oxygen` (4.7).
+`neon` (4.6).
 ```
 $ mvn -Declipse.target=neon package
 ```
@@ -135,7 +135,7 @@ target platform whenever dependencies are updated.
      Environments:`.
 
   1. The JDK just added should show up in the list on the right along with other
-     installed JDKs/JREs. Set the checkbox next the the JDK 8 added in the
+     installed JDKs/JREs. Set the checkbox next to the JDK 8 added in the
      previous steps to mark it as compatible with the `JavaSE-1.8` execution
      environment.
 
@@ -247,7 +247,6 @@ features being built against. We currently maintain three target platforms,
 targeting the latest version of the current, previous, and next releases.
 This is currently:
 
-  - Eclipse Mars (4.5 SR2): [`eclipse/mars/gcp-eclipse-mars.target`](eclipse/mars/gcp-eclipse-mars.target)
   - Eclipse Neon (4.6): [`eclipse/neon/gcp-eclipse-neon.target`](eclipse/neon/gcp-eclipse-neon.target)
   - Eclipse Oxygen (4.7): [`eclipse/oxygen/gcp-eclipse-oxygen.target`](eclipse/oxygen/gcp-eclipse-oxygen.target)
 
@@ -272,7 +271,7 @@ The process is:
        `org.eclipse.core.runtime`).
        Features are specified using their Feature ID suffixed with `.feature.group`
        (e.g., `org.eclipse.rcp.feature.group`).
-  4. Right-click in the editor and choose _Create Target Definition File_
+  4. Select the file in the Package Explorer, right-click, and choose _Create Target Definition File_
      to update the corresponding .target file.
 
 Both the `.tpd` and `.target` files should be committed.
