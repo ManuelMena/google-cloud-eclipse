@@ -18,6 +18,7 @@ package com.google.cloud.tools.eclipse.sdk.ui.preferences;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -83,16 +84,16 @@ public class CloudSdkPreferenceAreaTest {
   public void testVersion() throws Exception {
     CloudSdkManager.forceManagedSdkFeature = true;
 
-    Path mockSdk = MockSdkGenerator.createMockSdk();
+    Path mockSdk = MockSdkGenerator.createMockSdk("1.23.4");
     when(preferences.getString(CloudSdkPreferences.CLOUD_SDK_PATH)).thenReturn(mockSdk.toString());
     when(preferences.getString(CloudSdkPreferences.CLOUD_SDK_MANAGEMENT)).thenReturn("MANUAL");
 
     createPreferenceArea();
-    assertEquals("SDK version: 184.0.0", sdkVersion.getText());
+    assertEquals("SDK version: 1.23.4", sdkVersion.getText());
 
     when(preferences.getString(CloudSdkPreferences.CLOUD_SDK_MANAGEMENT)).thenReturn("AUTOMATIC");
     area.load();
-    assertEquals("SDK version: No SDK found", sdkVersion.getText());
+    assertNotEquals("SDK version: 1.23.4", sdkVersion.getText());
   }
 
   @Test

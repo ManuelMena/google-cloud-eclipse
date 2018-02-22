@@ -34,6 +34,10 @@ public class MockSdkGenerator {
    * directory with {@link #deleteMockSdk(Path)}.
    */
   public static Path createMockSdk() throws Exception {
+    return createMockSdk("184.0.0");
+  }
+
+  public static Path createMockSdk(String sdkVersion) throws Exception {
     Path mockSdk = Files.createTempDirectory("mock-gcloud-sdk");
     assertTrue(mockSdk.toFile().isDirectory());
 
@@ -47,7 +51,7 @@ public class MockSdkGenerator {
     createEmptyFile(mockSdk
         .resolve("platform/google_appengine/google/appengine/tools/java/lib/shared/jsp-api.jar"));
     createEmptyFile(mockSdk.resolve("platform/bundledpython/python.exe"));
-    createFile(mockSdk.resolve("VERSION"), "184.0.0");
+    createFile(mockSdk.resolve("VERSION"), sdkVersion);
     return mockSdk;
   }
 
